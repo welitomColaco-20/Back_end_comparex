@@ -1,65 +1,77 @@
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const multer = require("multer");
+const path = require("path");
 
 const app = express();
-
-// Middlewares
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
 
-// Conexão com MongoDB
+/* ----------------- Mongo ----------------- */
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB conectado"))
-  .catch(err => console.error("❌ Erro MongoDB:", err));
+  .catch(err => console.error("❌ Erro Mongo:", err));
 
-// Schema e Model
-const ProductSchema = new mongoose.Schema(
-  {
-    title: { type: String, required: true },
-    price: { type: Number, required: true },
-    image: { type: String, required: true },
-    affiliate_link: { type: String, required: true },
-    rating: { type: Number, default: 0 }
-  },
-  { timestamps: true }
-);
+/* ----------------- Schema ----------------- */
+const ProductSchema = new mongoose.Schema({
+  title: String,
+  price: Number,
+  image: String,
+  affiliate_link: String,
+  rating: Number
+});
 
 const Product = mongoose.model("Product", ProductSchema);
 
-// Rota teste
+/* ----------------- Multer ----------------- */
+const storage = multer.diskStorage({
+  destination: "uploads/",
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage });
+
+/* ----------------- Rotas ----------------- */
 app.get("/", (req, res) => {
   res.send("API Busca Shop rodando 🚀");
 });
 
-// 🔍 Buscar produtos
 app.get("/products", async (req, res) => {
-  try {
-    const search = req.query.search || "";
+  const search = req.query.search || "";
 
-    const products = await Product.find({
-      title: { $regex: search, $options: "i" }
-    });
+  const products = await Product.find({
+    title: { $regex: search, $options: "i" }
+  });
 
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ error: "Erro ao buscar produtos" });
-  }
+  res.json(products);
 });
 
-// ➕ Criar produto (ADMIN)
-app.post("/products", async (req, res) => {
+/* 🔥 ROTA DE CADASTRO COM UPLOAD */
+app.post("/products", upload.single("image"), async (req, res) => {
   try {
-    const product = await Product.create(req.body);
+    const product = await Product.create({
+      title: req.body.title,
+      price: req.body.price,
+      affiliate_link: req.body.affiliate_link,
+      rating: req.body.rating,
+      image: `/uploads/${req.file.filename}`
+    });
+
     res.status(201).json(product);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Erro ao salvar produto" });
   }
 });
 
-// Porta
+/* ----------------- Server ----------------- */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log("🚀 Servidor rodando na porta", PORT);
 });

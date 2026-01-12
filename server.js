@@ -12,7 +12,7 @@ app.use("/uploads", express.static("uploads"));
 
 /* ----------------- Mongo ----------------- */
 mongoose
-  .connect(process.env.mongodb+srv://welitombarancolaco_db:87575970We%2E%23@welitom.w1nxwv3.mongodb.net/busca_shop)
+  .connect(process.env.MONGO_URL)
   .then(() => console.log("✅ MongoDB conectado"))
   .catch(err => console.error("❌ Erro Mongo:", err));
 
